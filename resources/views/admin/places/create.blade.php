@@ -160,6 +160,7 @@
 
     /* ── Gallery ── */
     .gallery-drop-zone {
+        position: relative;
         border: 2px dashed #cbd5e0;
         border-radius: 14px;
         padding: 30px 20px;
@@ -173,6 +174,15 @@
     .gallery-drop-zone .dz-icon { font-size: 2rem; color: #a0aec0; margin-bottom: 6px; }
     .gallery-drop-zone .dz-text { font-weight: 600; color: #4a5568; font-size: 0.9rem; }
     .gallery-drop-zone .dz-hint { font-size: 0.78rem; color: #a0aec0; margin-top: 2px; }
+    #galleryInput {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+        z-index: 2;
+    }
     .gallery-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -188,8 +198,6 @@
         background: #edf2f7;
         cursor: grab;
     }
-    .gallery-item.dragging { opacity: 0.5; }
-    .gallery-item.drag-over { border-color: var(--admin-green); }
     .gallery-item.is-cover { border-color: var(--admin-green); box-shadow: 0 0 0 3px rgba(46,125,50,0.2); }
     .gallery-item img { width: 100%; height: 100%; object-fit: cover; }
     .gallery-item .gallery-actions {
@@ -598,11 +606,11 @@
         <div class="collapse show" id="section3">
             <div class="card-body">
                 <div class="gallery-drop-zone" id="galleryDropZone">
+                    <input type="file" name="images[]" id="galleryInput" accept="image/*" multiple>
                     <div class="dz-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
                     <div class="dz-text">Tarik & lepas foto di sini</div>
                     <div class="dz-hint">atau klik untuk memilih beberapa file</div>
                 </div>
-                <input type="file" name="images[]" id="galleryInput" accept="image/*" multiple style="display:none;">
                 <div class="progress-bar-upload" id="uploadProgress">
                     <div class="progress-fill" id="uploadProgressFill"></div>
                 </div>
@@ -741,8 +749,8 @@
         });
 
         // ─── Gallery (Multiple) ──────────────────────────
-        var galleryDropZone = document.getElementById('galleryDropZone');
         var galleryInput = document.getElementById('galleryInput');
+        var galleryDropZone = document.getElementById('galleryDropZone');
         var galleryGrid = document.getElementById('galleryGrid');
         var emptyGallery = document.getElementById('emptyGallery');
         var galleryCount = document.getElementById('galleryCount');
@@ -750,171 +758,63 @@
         var galleryStats = document.getElementById('galleryStats');
         var uploadProgress = document.getElementById('uploadProgress');
         var uploadProgressFill = document.getElementById('uploadProgressFill');
-        var galleryFiles = [];
 
-        function syncGalleryInput() {
-            var dt = new DataTransfer();
-            galleryFiles.forEach(function (f) { dt.items.add(f.file); });
-            galleryInput.files = dt.files;
-        }
-
-        function renderGallery() {
+        function renderGalleryPreviews(files) {
             galleryGrid.innerHTML = '';
-            if (galleryFiles.length === 0) {
+            if (!files || files.length === 0) {
                 galleryGrid.style.display = 'none';
                 emptyGallery.style.display = 'block';
                 galleryStats.style.display = 'none';
-                syncGalleryInput();
                 return;
             }
             galleryGrid.style.display = 'grid';
             emptyGallery.style.display = 'none';
             galleryStats.style.display = 'flex';
+            galleryCount.textContent = files.length;
+            galleryCoverInfo.textContent = files.length + ' file dipilih';
 
-            var hasCover = galleryFiles.some(function (f) { return f.isCover; });
-            galleryCount.textContent = galleryFiles.length;
-            galleryCoverInfo.textContent = hasCover ? 'Cover sudah dipilih' : 'Belum ada cover';
-
-            galleryFiles.forEach(function (file, index) {
-                var item = document.createElement('div');
-                item.className = 'gallery-item' + (file.isCover ? ' is-cover' : '');
-                item.dataset.index = index;
-                item.draggable = true;
-
-                if (file.type === 'video') {
-                    var vid = document.createElement('video');
-                    vid.src = file.dataUrl;
-                    vid.muted = true;
-                    vid.loop = true;
-                    vid.style.width = '100%';
-                    vid.style.height = '100%';
-                    vid.style.objectFit = 'cover';
-                    vid.addEventListener('mouseenter', function () { this.play(); });
-                    vid.addEventListener('mouseleave', function () { this.pause(); });
-                    item.appendChild(vid);
-                    var playIcon = document.createElement('div');
-                    playIcon.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.7);font-size:1.5rem;pointer-events:none;';
-                    playIcon.innerHTML = '<i class="fa-solid fa-play"></i>';
-                    item.appendChild(playIcon);
-                } else {
-                    var img = document.createElement('img');
-                    img.src = file.dataUrl;
-                    img.alt = file.file.name;
-                    item.appendChild(img);
-                }
-
-                var actions = document.createElement('div');
-                actions.className = 'gallery-actions';
-                var btnCover = document.createElement('button');
-                btnCover.type = 'button';
-                btnCover.className = 'btn-icon btn-cover';
-                btnCover.innerHTML = '<i class="fa-solid fa-crown"></i>';
-                btnCover.title = 'Jadikan Cover';
-                btnCover.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    galleryFiles.forEach(function (f) { f.isCover = false; });
-                    file.isCover = true;
-                    renderGallery();
-                });
-                var btnRemove = document.createElement('button');
-                btnRemove.type = 'button';
-                btnRemove.className = 'btn-icon btn-remove';
-                btnRemove.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-                btnRemove.title = 'Hapus';
-                btnRemove.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    galleryFiles.splice(index, 1);
-                    renderGallery();
-                    if (galleryFiles.length === 0) {
-                        var dt = new DataTransfer();
-                        galleryInput.files = dt.files;
-                    }
-                });
-                actions.appendChild(btnCover);
-                actions.appendChild(btnRemove);
-                item.appendChild(actions);
-
-                var badge = document.createElement('div');
-                badge.className = 'cover-badge';
-                badge.textContent = 'Cover';
-                item.appendChild(badge);
-
-                // Drag & drop reorder
-                item.addEventListener('dragstart', function (e) {
-                    e.dataTransfer.setData('text/plain', index);
-                    this.classList.add('dragging');
-                });
-                item.addEventListener('dragend', function () { this.classList.remove('dragging'); });
-                item.addEventListener('dragover', function (e) {
-                    e.preventDefault();
-                    galleryGrid.querySelectorAll('.drag-over').forEach(function (el) { el.classList.remove('drag-over'); });
-                    this.classList.add('drag-over');
-                });
-                item.addEventListener('dragleave', function () { this.classList.remove('drag-over'); });
-                item.addEventListener('drop', function (e) {
-                    e.preventDefault();
-                    this.classList.remove('drag-over');
-                    var fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
-                    var toIdx = parseInt(this.dataset.index);
-                    if (fromIdx !== toIdx) {
-                        var moved = galleryFiles.splice(fromIdx, 1)[0];
-                        galleryFiles.splice(toIdx, 0, moved);
-                        renderGallery();
-                    }
-                });
-
-                galleryGrid.appendChild(item);
-            });
-            syncGalleryInput();
-        }
-
-        function addGalleryFiles(fileList) {
-            var processed = 0;
-            var total = fileList.length;
-            uploadProgress.style.display = 'block';
-
-            function processNext() {
-                if (processed >= total) {
-                    uploadProgress.style.display = 'none';
-                    renderGallery();
-                    return;
-                }
-                var file = fileList[processed];
-                var isVideo = file.type.match('video.*');
-                var isImage = file.type.match('image.*');
-                if (isImage || isVideo) {
+            for (var gi = 0; gi < files.length; gi++) {
+                (function (file, idx) {
                     var reader = new FileReader();
                     reader.onload = function (e) {
-                        galleryFiles.push({
-                            file: file,
-                            dataUrl: e.target.result,
-                            type: isVideo ? 'video' : 'image',
-                            isCover: galleryFiles.length === 0 && !galleryFiles.some(function (f) { return f.isCover; }),
-                        });
-                        processed++;
-                        uploadProgressFill.style.width = ((processed / total) * 100) + '%';
-                        processNext();
+                        var item = document.createElement('div');
+                        item.className = 'gallery-item';
+                        if (file.type.match('video.*')) {
+                            var vid = document.createElement('video');
+                            vid.src = e.target.result;
+                            vid.muted = true;
+                            vid.loop = true;
+                            vid.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+                            vid.addEventListener('mouseenter', function () { this.play(); });
+                            vid.addEventListener('mouseleave', function () { this.pause(); });
+                            item.appendChild(vid);
+                            var playIcon = document.createElement('div');
+                            playIcon.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.7);font-size:1.5rem;pointer-events:none;';
+                            playIcon.innerHTML = '<i class="fa-solid fa-play"></i>';
+                            item.appendChild(playIcon);
+                        } else {
+                            var img = document.createElement('img');
+                            img.src = e.target.result;
+                            img.alt = file.name;
+                            item.appendChild(img);
+                        }
+                        galleryGrid.appendChild(item);
                     };
                     reader.readAsDataURL(file);
-                } else {
-                    processed++;
-                    uploadProgressFill.style.width = ((processed / total) * 100) + '%';
-                    processNext();
-                }
+                })(files[gi], gi);
             }
-            processNext();
         }
 
-        galleryDropZone.addEventListener('click', function () { galleryInput.click(); });
-        galleryDropZone.addEventListener('dragover', function (e) { e.preventDefault(); this.classList.add('dragover'); });
-        galleryDropZone.addEventListener('dragleave', function () { this.classList.remove('dragover'); });
-        galleryDropZone.addEventListener('drop', function (e) {
-            e.preventDefault();
-            this.classList.remove('dragover');
-            addGalleryFiles(e.dataTransfer.files);
-        });
         galleryInput.addEventListener('change', function () {
-            if (this.files.length) addGalleryFiles(this.files);
+            renderGalleryPreviews(this.files);
+        });
+
+        galleryDropZone.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+        galleryDropZone.addEventListener('dragleave', function () {
+            this.classList.remove('dragover');
         });
 
         // ─── Rich Text Editor ───────────────────────────
