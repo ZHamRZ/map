@@ -756,57 +756,117 @@
         var galleryCount = document.getElementById('galleryCount');
         var galleryCoverInfo = document.getElementById('galleryCoverInfo');
         var galleryStats = document.getElementById('galleryStats');
-        var uploadProgress = document.getElementById('uploadProgress');
-        var uploadProgressFill = document.getElementById('uploadProgressFill');
+        var galleryFiles = [];
 
-        function renderGalleryPreviews(files) {
+        function syncGalleryInput() {
+            var dt = new DataTransfer();
+            galleryFiles.forEach(function (f) { dt.items.add(f.file); });
+            galleryInput.files = dt.files;
+        }
+
+        function renderGallery() {
             galleryGrid.innerHTML = '';
-            if (!files || files.length === 0) {
+            if (galleryFiles.length === 0) {
                 galleryGrid.style.display = 'none';
                 emptyGallery.style.display = 'block';
                 galleryStats.style.display = 'none';
+                syncGalleryInput();
                 return;
             }
             galleryGrid.style.display = 'grid';
             emptyGallery.style.display = 'none';
             galleryStats.style.display = 'flex';
-            galleryCount.textContent = files.length;
-            galleryCoverInfo.textContent = files.length + ' file dipilih';
+            var hasCover = galleryFiles.some(function (f) { return f.isCover; });
+            galleryCount.textContent = galleryFiles.length;
+            galleryCoverInfo.textContent = hasCover ? 'Cover sudah dipilih' : 'Belum ada cover';
 
-            for (var gi = 0; gi < files.length; gi++) {
-                (function (file, idx) {
+            galleryFiles.forEach(function (file, index) {
+                var item = document.createElement('div');
+                item.className = 'gallery-item' + (file.isCover ? ' is-cover' : '');
+                item.dataset.index = index;
+
+                if (file.type === 'video') {
+                    var vid = document.createElement('video');
+                    vid.src = file.dataUrl;
+                    vid.muted = true;
+                    vid.loop = true;
+                    vid.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+                    vid.addEventListener('mouseenter', function () { this.play(); });
+                    vid.addEventListener('mouseleave', function () { this.pause(); });
+                    item.appendChild(vid);
+                    var playIcon = document.createElement('div');
+                    playIcon.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.7);font-size:1.5rem;pointer-events:none;';
+                    playIcon.innerHTML = '<i class="fa-solid fa-play"></i>';
+                    item.appendChild(playIcon);
+                } else {
+                    var img = document.createElement('img');
+                    img.src = file.dataUrl;
+                    img.alt = file.file.name;
+                    item.appendChild(img);
+                }
+
+                var actions = document.createElement('div');
+                actions.className = 'gallery-actions';
+                var btnCover = document.createElement('button');
+                btnCover.type = 'button';
+                btnCover.className = 'btn-icon btn-cover';
+                btnCover.innerHTML = '<i class="fa-solid fa-crown"></i>';
+                btnCover.title = 'Jadikan Cover';
+                btnCover.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    galleryFiles.forEach(function (f) { f.isCover = false; });
+                    file.isCover = true;
+                    renderGallery();
+                });
+                var btnRemove = document.createElement('button');
+                btnRemove.type = 'button';
+                btnRemove.className = 'btn-icon btn-remove';
+                btnRemove.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                btnRemove.title = 'Hapus';
+                btnRemove.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    galleryFiles.splice(index, 1);
+                    renderGallery();
+                });
+                actions.appendChild(btnCover);
+                actions.appendChild(btnRemove);
+                item.appendChild(actions);
+
+                var badge = document.createElement('div');
+                badge.className = 'cover-badge';
+                badge.textContent = 'Cover';
+                item.appendChild(badge);
+
+                galleryGrid.appendChild(item);
+            });
+            syncGalleryInput();
+        }
+
+        function addGalleryFiles(fileList) {
+            var total = fileList.length;
+            for (var gi = 0; gi < total; gi++) {
+                (function (file) {
+                    var isVideo = file.type.match('video.*');
+                    var isImage = file.type.match('image.*');
+                    if (!isImage && !isVideo) return;
                     var reader = new FileReader();
                     reader.onload = function (e) {
-                        var item = document.createElement('div');
-                        item.className = 'gallery-item';
-                        if (file.type.match('video.*')) {
-                            var vid = document.createElement('video');
-                            vid.src = e.target.result;
-                            vid.muted = true;
-                            vid.loop = true;
-                            vid.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-                            vid.addEventListener('mouseenter', function () { this.play(); });
-                            vid.addEventListener('mouseleave', function () { this.pause(); });
-                            item.appendChild(vid);
-                            var playIcon = document.createElement('div');
-                            playIcon.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.7);font-size:1.5rem;pointer-events:none;';
-                            playIcon.innerHTML = '<i class="fa-solid fa-play"></i>';
-                            item.appendChild(playIcon);
-                        } else {
-                            var img = document.createElement('img');
-                            img.src = e.target.result;
-                            img.alt = file.name;
-                            item.appendChild(img);
-                        }
-                        galleryGrid.appendChild(item);
+                        galleryFiles.push({
+                            file: file,
+                            dataUrl: e.target.result,
+                            type: isVideo ? 'video' : 'image',
+                            isCover: galleryFiles.length === 0 && !galleryFiles.some(function (f) { return f.isCover; }),
+                        });
+                        renderGallery();
                     };
                     reader.readAsDataURL(file);
-                })(files[gi], gi);
+                })(fileList[gi]);
             }
         }
 
         galleryInput.addEventListener('change', function () {
-            renderGalleryPreviews(this.files);
+            addGalleryFiles(this.files);
+            this.value = '';
         });
 
         galleryDropZone.addEventListener('dragover', function (e) {
@@ -815,6 +875,11 @@
         });
         galleryDropZone.addEventListener('dragleave', function () {
             this.classList.remove('dragover');
+        });
+        galleryDropZone.addEventListener('drop', function (e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            addGalleryFiles(e.dataTransfer.files);
         });
 
         // ─── Rich Text Editor ───────────────────────────
