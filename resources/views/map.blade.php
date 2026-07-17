@@ -1370,12 +1370,10 @@
             min-width: 120px;
             max-height: 38vh;
             overflow-y: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
         }
-        #info-card::-webkit-scrollbar { width: 4px; }
-        #info-card::-webkit-scrollbar-track { background: transparent; }
-        #info-card::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
-        #info-card::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
-        #info-card { scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.15) transparent; }
+        #info-card::-webkit-scrollbar { display: none; }
         #info-card:hover {
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
         }
