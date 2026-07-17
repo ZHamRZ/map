@@ -533,7 +533,6 @@
             100% { transform: translateY(0) scale(1); opacity: 1; }
         }
 
-        /* Tooltip CSS dihapus — digantikan hover info card di luar map */
 
         /* ====================================================
                POPUP — PREMIUM AIRBNB-STYLE CARD
@@ -1432,76 +1431,6 @@
             display: block;
         }
 
-        /* ── Hover Info Card (outside map, connector line) ── */
-        #hover-info-card {
-            position: fixed;
-            z-index: 9999;
-            width: 260px;
-            background: #fff;
-            border-radius: 14px;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.18);
-            overflow: hidden;
-            transition: opacity 0.25s ease;
-            font-family: 'Inter', sans-serif;
-            pointer-events: none;
-        }
-        #hover-info-card.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        #hover-info-card .hover-info-img {
-            width: 100%;
-            height: 100px;
-            background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
-            background-size: cover;
-            background-position: center;
-        }
-        #hover-info-card .hover-info-body {
-            padding: 10px 12px 12px;
-        }
-        #hover-info-card .hover-info-category {
-            display: inline-block;
-            font-size: 9px;
-            font-weight: 700;
-            color: #fff;
-            padding: 2px 8px;
-            border-radius: 8px;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        #hover-info-card h5 {
-            margin: 0 0 4px;
-            font-family: 'Poppins', sans-serif;
-            font-size: 14px;
-            font-weight: 700;
-            color: #1a202c;
-            line-height: 1.3;
-        }
-        #hover-info-card p {
-            margin: 0;
-            font-size: 11px;
-            color: #64748b;
-            line-height: 1.4;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        #hover-connector {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 99999;
-            pointer-events: none;
-            transition: opacity 0.25s ease;
-        }
-        #hover-connector.hidden {
-            opacity: 0;
-        }
-
         /* ── Scale bar (bottom-left, above info card) ── */
         .leaflet-control-scale {
             margin-bottom: 62px !important;
@@ -2383,26 +2312,6 @@
     <div id="cinematic-overlay"></div>
 
     {{-- ====================================================
-    HOVER INFO CARD (outside map, connected by line)
-    ==================================================== --}}
-    <div id="hover-info-card" class="hidden">
-        <div class="hover-info-img" id="hover-info-img"></div>
-        <div class="hover-info-body">
-            <div class="hover-info-category" id="hover-info-category"></div>
-            <h5 id="hover-info-name"></h5>
-            <p id="hover-info-desc"></p>
-        </div>
-    </div>
-    <svg id="hover-connector" class="hidden" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));">
-        <!-- Outline path for visibility -->
-        <path id="hover-connector-outline" d="" fill="none" stroke="rgba(0,0,0,0.4)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-        <path id="hover-connector-path" d="" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-dasharray="6,4" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle id="hover-connector-dot-outline" cx="0" cy="0" r="7" fill="rgba(0,0,0,0.3)"/>
-        <circle id="hover-connector-dot" cx="0" cy="0" r="5" fill="#FFFFFF"/>
-    </svg>
-    </svg>
-
-    {{-- ====================================================
     SCRIPTS
     ==================================================== --}}
 
@@ -3161,8 +3070,6 @@
                                     '</button>';
                             }
 
-                            // Tooltip dihapus — digantikan oleh hover info card di luar map
-
                             var randRating = (4 + Math.random()).toFixed(1);
                             var catColor = CATEGORY_COLORS[p.category] || CATEGORY_COLORS[DEFAULT_CATEGORY];
                             var catSvgPath = CATEGORY_SVG[p.category] || CATEGORY_SVG[DEFAULT_CATEGORY];
@@ -3200,45 +3107,7 @@
                                 className: 'leaflet-popup-custom',
                             });
 
-                            // Hover info card + connector line
-                            layer.on('mouseover', function () {
-                                var card = document.getElementById('hover-info-card');
-                                var imgEl = document.getElementById('hover-info-img');
-                                var catEl = document.getElementById('hover-info-category');
-                                var nameEl = document.getElementById('hover-info-name');
-                                var descEl = document.getElementById('hover-info-desc');
-                                var connector = document.getElementById('hover-connector');
 
-                                var color = CATEGORY_COLORS[p.category] || CATEGORY_COLORS[DEFAULT_CATEGORY];
-
-                                catEl.textContent = safeCategory;
-                                catEl.style.background = color;
-                                nameEl.textContent = safeName;
-                                descEl.textContent = safeDesc || LANG.no_description;
-                                if (safeImgUrl) {
-                                    imgEl.style.backgroundImage = 'url(' + safeImgUrl + ')';
-                                    imgEl.style.display = 'block';
-                                } else {
-                                    imgEl.style.display = 'none';
-                                }
-
-                                card.classList.remove('hidden');
-                                connector.classList.remove('hidden');
-
-                                window._hoveredLayer = layer;
-                                // Tunggu reflow layout card sebelum mengukur posisi
-                                requestAnimationFrame(function () {
-                                    updateHoverConnector(layer, card);
-                                });
-                            });
-
-                            layer.on('mouseout', function () {
-                                document.getElementById('hover-info-card').classList.add('hidden');
-                                document.getElementById('hover-connector').classList.add('hidden');
-                                document.getElementById('hover-connector-path').setAttribute('d', '');
-                                document.getElementById('hover-connector-outline').setAttribute('d', '');
-                                window._hoveredLayer = null;
-                            });
                         }
                     });
 
@@ -3681,166 +3550,11 @@
             }
 
             // ────────────────────────────────────────────────
-            // 13. HOVER CONNECTOR LINE
-            // ────────────────────────────────────────────────
-
-            function updateHoverConnector(layer, card) {
-                var path = document.getElementById('hover-connector-path');
-                var outline = document.getElementById('hover-connector-outline');
-                var dot = document.getElementById('hover-connector-dot');
-                var dotOutline = document.getElementById('hover-connector-dot-outline');
-
-                if (!layer || !card || card.classList.contains('hidden')) return;
-
-                // Gunakan DOM marker langsung untuk posisi yang akurat
-                var iconEl = layer._icon;
-                if (!iconEl) return;
-
-                var iconRect = iconEl.getBoundingClientRect();
-                var mx = iconRect.left + iconRect.width / 2;
-                var my = iconRect.top + iconRect.height * 0.35; // 35% dari atas = area lingkaran putih
-                var vpW = window.innerWidth;
-                var vpH = window.innerHeight;
-                var cardW = 260;
-                var cardH = card.offsetHeight || 170;
-                var gap = 48;
-
-                card.style.left = '';
-                card.style.right = '';
-                card.style.top = '';
-                card.style.bottom = '';
-                card.style.transform = '';
-
-                // Cari arah dengan ruang cukup dari marker (hindari bawah agar tidak nutup marker)
-                var distRight = vpW - mx;
-                var distLeft = mx;
-                var distTop = my;
-                var distBottom = vpH - my;
-
-                var cardLeft, cardTop;
-
-                if (distTop >= cardH + gap) {
-                    // Atas (prioritas)
-                    cardLeft = Math.max(8, Math.min(vpW - cardW - 8, mx - cardW / 2));
-                    cardTop = my - cardH - gap;
-                } else if (distRight >= cardW + gap && distRight >= distLeft) {
-                    // Kanan
-                    cardLeft = mx + gap;
-                    cardTop = Math.max(8, Math.min(vpH - cardH - 8, my - cardH / 2));
-                } else if (distLeft >= cardW + gap) {
-                    // Kiri
-                    cardLeft = mx - cardW - gap;
-                    cardTop = Math.max(8, Math.min(vpH - cardH - 8, my - cardH / 2));
-                } else if (distBottom >= cardH + gap) {
-                    // Bawah (opsi terakhir)
-                    cardLeft = Math.max(8, Math.min(vpW - cardW - 8, mx - cardW / 2));
-                    cardTop = my + gap;
-                } else {
-                    // Fallback: atas dengan penyesuaian
-                    cardLeft = Math.max(8, Math.min(vpW - cardW - 8, mx - cardW / 2));
-                    cardTop = Math.max(8, my - cardH - gap);
-                }
-
-                card.style.left = cardLeft + 'px';
-                card.style.top = cardTop + 'px';
-
-                var cardRect = card.getBoundingClientRect();
-                var iconRect = iconEl.getBoundingClientRect();
-
-                // Tentukan tepi marker yang menghadap card
-                var mEdgeX, mEdgeY;
-                var dx = (cardRect.left + cardRect.width / 2) - (iconRect.left + iconRect.width / 2);
-                var dy = (cardRect.top + cardRect.height / 2) - (iconRect.top + iconRect.height / 2);
-
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    // Kiri/kanan
-                    mEdgeX = dx > 0 ? iconRect.right : iconRect.left;
-                    mEdgeY = iconRect.top + iconRect.height / 2;
-                } else {
-                    // Atas/bawah
-                    mEdgeX = iconRect.left + iconRect.width / 2;
-                    mEdgeY = dy > 0 ? iconRect.bottom : iconRect.top;
-                }
-
-                // Tentukan tepi card yang menghadap marker
-                var cEdgeX, cEdgeY;
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    cEdgeX = dx > 0 ? cardRect.left : cardRect.right;
-                    cEdgeY = cardRect.top + cardRect.height / 2;
-                } else {
-                    cEdgeX = cardRect.left + cardRect.width / 2;
-                    cEdgeY = dy > 0 ? cardRect.top : cardRect.bottom;
-                }
-
-                // Elbow: titik siku antara marker edge dan card edge
-                var elbowX, elbowY;
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    // Siku horizontal dulu, lalu vertikal
-                    elbowX = cEdgeX;
-                    elbowY = mEdgeY;
-                } else {
-                    // Siku vertikal dulu, lalu horizontal
-                    elbowX = mEdgeX;
-                    elbowY = cEdgeY;
-                }
-
-                var pathD = 'M' + mEdgeX + ',' + mEdgeY +
-                    ' L' + elbowX + ',' + elbowY +
-                    ' L' + cEdgeX + ',' + cEdgeY;
-
-                outline.setAttribute('d', pathD);
-                path.setAttribute('d', pathD);
-                dotOutline.setAttribute('cx', mEdgeX);
-                dotOutline.setAttribute('cy', mEdgeY);
-                dot.setAttribute('cx', mEdgeX);
-                dot.setAttribute('cy', mEdgeY);
-            }
-
-            map.on('moveend', function () {
-                var card = document.getElementById('hover-info-card');
-                if (!card.classList.contains('hidden') && window._hoveredLayer) {
-                    updateHoverConnector(window._hoveredLayer, card);
-                }
-            });
-
-            map.on('zoomend', function () {
-                var card = document.getElementById('hover-info-card');
-                if (!card.classList.contains('hidden') && window._hoveredLayer) {
-                    updateHoverConnector(window._hoveredLayer, card);
-                }
-            });
-
-            // Update connector on any map interaction
-            map.on('mousemove', function () {
-                if (window._hoveredLayer) {
-                    updateHoverConnector(window._hoveredLayer, document.getElementById('hover-info-card'));
-                }
-            });
-
-            map.on('drag', function () {
-                if (window._hoveredLayer) {
-                    updateHoverConnector(window._hoveredLayer, document.getElementById('hover-info-card'));
-                }
-            });
-
-            // Hide card on map click
-            map.on('click', function () {
-                document.getElementById('hover-info-card').classList.add('hidden');
-                document.getElementById('hover-connector').classList.add('hidden');
-                document.getElementById('hover-connector-path').setAttribute('d', '');
-                document.getElementById('hover-connector-outline').setAttribute('d', '');
-                window._hoveredLayer = null;
-            });
-
-            // ────────────────────────────────────────────────
             // 14. RESIZE HANDLER
             // ────────────────────────────────────────────────
 
             window.addEventListener('resize', function () {
                 map.invalidateSize();
-                if (window._hoveredLayer) {
-                    updateHoverConnector(window._hoveredLayer, document.getElementById('hover-info-card'));
-                }
             });
 
             // ────────────────────────────────────────────────
