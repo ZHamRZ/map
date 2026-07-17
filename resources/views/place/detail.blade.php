@@ -605,7 +605,7 @@
                 routingControl = L.Routing.control({
                     waypoints: [L.latLng(slat, slng), L.latLng(DEST_LAT, DEST_LNG)],
                     router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'driving' }),
-                    lineOptions: { styles: [{ color: '#1565C0', weight: 10, opacity: 0.25 }, { color: '#1565C0', weight: 6, opacity: 0.85 }] },
+                    lineOptions: { styles: [{ color: '#FFFFFF', weight: 12, opacity: 0.9 }, { color: '#2E7D32', weight: 6, opacity: 0.85 }] },
                     addWaypoints: false, draggableWaypoints: false, fitSelectedRoutes: false,
                     showAlternatives: false, show: false, createMarker: function () { return null; },
                 }).addTo(map);

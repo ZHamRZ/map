@@ -3632,9 +3632,13 @@
                     }),
                     lineOptions: {
                         styles: [{
-                            color: '#7b2d8e',
+                            color: '#FFFFFF',
+                            weight: 9,
+                            opacity: 0.9,
+                        }, {
+                            color: '#2E7D32',
                             weight: 5,
-                            opacity: 0.8,
+                            opacity: 0.85,
                         }],
                     },
                     addWaypoints: false,
@@ -4014,7 +4018,7 @@
                         profile: 'driving',
                     }),
                     lineOptions: {
-                        styles: [{ color: '#1b5e20', weight: 6, opacity: 0.85 }],
+                        styles: [{ color: '#FFFFFF', weight: 10, opacity: 0.9 }, { color: '#2E7D32', weight: 6, opacity: 0.85 }],
                         extendToWaypoints: true,
                         missingRouteStyles: [{ color: '#f39c12', weight: 4, opacity: 0.6, dashArray: '8,12' }],
                     },
