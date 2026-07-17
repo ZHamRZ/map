@@ -175,13 +175,7 @@
     .gallery-drop-zone .dz-text { font-weight: 600; color: #4a5568; font-size: 0.9rem; }
     .gallery-drop-zone .dz-hint { font-size: 0.78rem; color: #a0aec0; margin-top: 2px; }
     #galleryInput {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        cursor: pointer;
-        z-index: 2;
+        display: none;
     }
     .gallery-grid {
         display: grid;
@@ -605,8 +599,8 @@
         </div>
         <div class="collapse show" id="section3">
             <div class="card-body">
+                <input type="file" name="images[]" id="galleryInput" accept="image/*" multiple>
                 <div class="gallery-drop-zone" id="galleryDropZone">
-                    <input type="file" name="images[]" id="galleryInput" accept="image/*" multiple>
                     <div class="dz-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
                     <div class="dz-text">Tarik & lepas foto di sini</div>
                     <div class="dz-hint">atau klik untuk memilih beberapa file</div>
@@ -758,36 +752,26 @@
         var galleryStats = document.getElementById('galleryStats');
         var galleryFiles = [];
 
-        function syncGalleryInput() {
-            var dt = new DataTransfer();
-            galleryFiles.forEach(function (f) { dt.items.add(f.file); });
-            galleryInput.files = dt.files;
-        }
-
         function renderGallery() {
             galleryGrid.innerHTML = '';
             if (galleryFiles.length === 0) {
                 galleryGrid.style.display = 'none';
                 emptyGallery.style.display = 'block';
                 galleryStats.style.display = 'none';
-                syncGalleryInput();
                 return;
             }
             galleryGrid.style.display = 'grid';
             emptyGallery.style.display = 'none';
             galleryStats.style.display = 'flex';
-            var hasCover = galleryFiles.some(function (f) { return f.isCover; });
             galleryCount.textContent = galleryFiles.length;
-            galleryCoverInfo.textContent = hasCover ? 'Cover sudah dipilih' : 'Belum ada cover';
+            galleryCoverInfo.textContent = 'File pertama jadi cover';
 
-            galleryFiles.forEach(function (file, index) {
+            galleryFiles.forEach(function (f, idx) {
                 var item = document.createElement('div');
-                item.className = 'gallery-item' + (file.isCover ? ' is-cover' : '');
-                item.dataset.index = index;
-
-                if (file.type === 'video') {
+                item.className = 'gallery-item' + (f.isCover ? ' is-cover' : '');
+                if (f.type === 'video') {
                     var vid = document.createElement('video');
-                    vid.src = file.dataUrl;
+                    vid.src = f.dataUrl;
                     vid.muted = true;
                     vid.loop = true;
                     vid.style.cssText = 'width:100%;height:100%;object-fit:cover;';
@@ -800,11 +784,16 @@
                     item.appendChild(playIcon);
                 } else {
                     var img = document.createElement('img');
-                    img.src = file.dataUrl;
-                    img.alt = file.file.name;
+                    img.src = f.dataUrl;
+                    img.alt = f.file.name;
                     item.appendChild(img);
                 }
-
+                if (f.isCover) {
+                    var badge = document.createElement('div');
+                    badge.className = 'cover-badge';
+                    badge.textContent = 'Cover';
+                    item.appendChild(badge);
+                }
                 var actions = document.createElement('div');
                 actions.className = 'gallery-actions';
                 var btnCover = document.createElement('button');
@@ -814,8 +803,8 @@
                 btnCover.title = 'Jadikan Cover';
                 btnCover.addEventListener('click', function (e) {
                     e.stopPropagation();
-                    galleryFiles.forEach(function (f) { f.isCover = false; });
-                    file.isCover = true;
+                    galleryFiles.forEach(function (x) { x.isCover = false; });
+                    f.isCover = true;
                     renderGallery();
                 });
                 var btnRemove = document.createElement('button');
@@ -825,26 +814,18 @@
                 btnRemove.title = 'Hapus';
                 btnRemove.addEventListener('click', function (e) {
                     e.stopPropagation();
-                    galleryFiles.splice(index, 1);
+                    galleryFiles.splice(idx, 1);
                     renderGallery();
                 });
                 actions.appendChild(btnCover);
                 actions.appendChild(btnRemove);
                 item.appendChild(actions);
-
-                var badge = document.createElement('div');
-                badge.className = 'cover-badge';
-                badge.textContent = 'Cover';
-                item.appendChild(badge);
-
                 galleryGrid.appendChild(item);
             });
-            syncGalleryInput();
         }
 
-        function addGalleryFiles(fileList) {
-            var total = fileList.length;
-            for (var gi = 0; gi < total; gi++) {
+        function addFiles(fileList) {
+            for (var gi = 0; gi < fileList.length; gi++) {
                 (function (file) {
                     var isVideo = file.type.match('video.*');
                     var isImage = file.type.match('image.*');
@@ -855,7 +836,7 @@
                             file: file,
                             dataUrl: e.target.result,
                             type: isVideo ? 'video' : 'image',
-                            isCover: galleryFiles.length === 0 && !galleryFiles.some(function (f) { return f.isCover; }),
+                            isCover: galleryFiles.length === 0,
                         });
                         renderGallery();
                     };
@@ -864,22 +845,53 @@
             }
         }
 
-        galleryInput.addEventListener('change', function () {
-            addGalleryFiles(this.files);
-            this.value = '';
-        });
-
-        galleryDropZone.addEventListener('dragover', function (e) {
-            e.preventDefault();
-            this.classList.add('dragover');
-        });
-        galleryDropZone.addEventListener('dragleave', function () {
-            this.classList.remove('dragover');
-        });
+        galleryDropZone.addEventListener('click', function () { galleryInput.click(); });
+        galleryInput.addEventListener('change', function () { addFiles(this.files); this.value = ''; });
+        galleryDropZone.addEventListener('dragover', function (e) { e.preventDefault(); this.classList.add('dragover'); });
+        galleryDropZone.addEventListener('dragleave', function () { this.classList.remove('dragover'); });
         galleryDropZone.addEventListener('drop', function (e) {
             e.preventDefault();
             this.classList.remove('dragover');
-            addGalleryFiles(e.dataTransfer.files);
+            addFiles(e.dataTransfer.files);
+        });
+
+        // ─── Form submit via AJAX (for file upload) ─────
+        document.getElementById('placeForm').addEventListener('submit', function (e) {
+            if (galleryFiles.length === 0) return;
+            e.preventDefault();
+            var form = this;
+            var fd = new FormData(form);
+            galleryFiles.forEach(function (f) {
+                fd.append('images[]', f.file, f.file.name);
+            });
+            var btn = form.querySelector('[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menyimpan...';
+
+            fetch(form.action, {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            }).then(function (r) {
+                if (r.ok) {
+                    window.location.href = '{{ route("admin.places.index") }}';
+                    return;
+                }
+                return r.json().then(function (data) {
+                    var msg = data.message || 'Gagal menyimpan data.';
+                    if (data.errors) {
+                        var list = Object.values(data.errors).flat().join('\n');
+                        msg += '\n\n' + list;
+                    }
+                    alert(msg);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Publikasikan';
+                });
+            }).catch(function () {
+                alert('Terjadi kesalahan jaringan.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Publikasikan';
+            });
         });
 
         // ─── Rich Text Editor ───────────────────────────
