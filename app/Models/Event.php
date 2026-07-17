@@ -67,7 +67,7 @@ class Event extends Model
     public function getImageUrlAttribute(): ?string
     {
         return $this->image_path
-            ? \Illuminate\Support\Facades\Storage::url($this->image_path)
+            ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->image_path)
             : null;
     }
 

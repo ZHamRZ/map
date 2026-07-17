@@ -25,14 +25,14 @@ class PlaceImage extends Model
     public function getImageUrlAttribute(): ?string
     {
         return $this->image_path
-            ? Storage::url($this->image_path)
+            ? Storage::disk('public')->url($this->image_path)
             : null;
     }
 
     public function getThumbUrlAttribute(): ?string
     {
         return $this->thumb_path
-            ? Storage::url($this->thumb_path)
+            ? Storage::disk('public')->url($this->thumb_path)
             : null;
     }
 

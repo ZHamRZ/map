@@ -45,7 +45,7 @@ class Place extends Model
     public function getImageUrlAttribute(): ?string
     {
         if ($this->image_path) {
-            return Storage::url($this->image_path);
+            return Storage::disk('public')->url($this->image_path);
         }
         if ($this->relationLoaded('images')) {
             $first = $this->images->first();
