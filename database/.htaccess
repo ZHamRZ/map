@@ -1,0 +1,9 @@
+# Laravel: Lindungi database SQLite dari akses web langsung
+Order deny,allow
+Deny from all
+
+# Alternatif untuk Apache 2.4+
+# Require all denied
+
+# Cegah daftar direktori
+Options -Indexes
