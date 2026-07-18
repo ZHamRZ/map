@@ -159,24 +159,18 @@
     .hero-size-hint i { color: var(--admin-green); }
 
     /* ── Gallery ── */
-    .gallery-drop-zone {
-        position: relative;
+
+    #galleryInput {
+        width: 100%;
+        padding: 12px;
         border: 2px dashed #cbd5e0;
         border-radius: 14px;
-        padding: 30px 20px;
-        text-align: center;
-        cursor: pointer;
-        transition: all 0.25s ease;
         background: #f7fafc;
+        cursor: pointer;
         margin-bottom: 16px;
+        box-sizing: border-box;
     }
-    .gallery-drop-zone:hover, .gallery-drop-zone.dragover { border-color: var(--admin-green); background: var(--admin-green-light); }
-    .gallery-drop-zone .dz-icon { font-size: 2rem; color: #a0aec0; margin-bottom: 6px; }
-    .gallery-drop-zone .dz-text { font-weight: 600; color: #4a5568; font-size: 0.9rem; }
-    .gallery-drop-zone .dz-hint { font-size: 0.78rem; color: #a0aec0; margin-top: 2px; }
-    #galleryInput {
-        display: none;
-    }
+    #galleryInput:hover { border-color: var(--admin-green); }
     .gallery-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -237,21 +231,7 @@
         padding: 20px;
         color: #a0aec0;
     }
-    .progress-bar-upload {
-        height: 4px;
-        border-radius: 2px;
-        background: #e2e8f0;
-        overflow: hidden;
-        margin-top: 8px;
-        display: none;
-    }
-    .progress-bar-upload .progress-fill {
-        height: 100%;
-        background: var(--admin-green);
-        border-radius: 2px;
-        width: 0%;
-        transition: width 0.3s ease;
-    }
+
     .gallery-stats {
         font-size: 0.78rem;
         color: #718096;
@@ -600,13 +580,9 @@
         <div class="collapse show" id="section3">
             <div class="card-body">
                 <input type="file" name="images[]" id="galleryInput" accept="image/*" multiple>
-                <div class="gallery-drop-zone" id="galleryDropZone">
-                    <div class="dz-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
-                    <div class="dz-text">Tarik & lepas foto di sini</div>
-                    <div class="dz-hint">atau klik untuk memilih beberapa file</div>
-                </div>
-                <div class="progress-bar-upload" id="uploadProgress">
-                    <div class="progress-fill" id="uploadProgressFill"></div>
+                <input type="hidden" name="cover_index" id="coverIndex" value="0">
+                <div id="galleryProcessing" style="display:none;text-align:center;padding:12px;color:#718096;font-size:0.85rem;">
+                    <i class="fa-solid fa-spinner fa-spin me-2"></i> Memproses gambar...
                 </div>
                 <div id="galleryContainer">
                     <div class="empty-gallery empty-state" id="emptyGallery">
@@ -726,6 +702,7 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         'use strict';
@@ -742,19 +719,19 @@
             });
         });
 
-        // ─── Gallery (Multiple) ──────────────────────────
+        // ─── Gallery (Multiple) — simple native ─────────
         var galleryInput = document.getElementById('galleryInput');
-        var galleryDropZone = document.getElementById('galleryDropZone');
         var galleryGrid = document.getElementById('galleryGrid');
         var emptyGallery = document.getElementById('emptyGallery');
         var galleryCount = document.getElementById('galleryCount');
         var galleryCoverInfo = document.getElementById('galleryCoverInfo');
         var galleryStats = document.getElementById('galleryStats');
-        var galleryFiles = [];
 
-        function renderGallery() {
+        galleryInput.addEventListener('change', function () {
             galleryGrid.innerHTML = '';
-            if (galleryFiles.length === 0) {
+            window._galleryFiles = [];
+            var files = this.files;
+            if (!files || files.length === 0) {
                 galleryGrid.style.display = 'none';
                 emptyGallery.style.display = 'block';
                 galleryStats.style.display = 'none';
@@ -762,136 +739,104 @@
             }
             galleryGrid.style.display = 'grid';
             emptyGallery.style.display = 'none';
-            galleryStats.style.display = 'flex';
-            galleryCount.textContent = galleryFiles.length;
-            galleryCoverInfo.textContent = 'File pertama jadi cover';
+            galleryStats.style.display = 'none';
+            document.getElementById('galleryProcessing').style.display = 'block';
 
-            galleryFiles.forEach(function (f, idx) {
-                var item = document.createElement('div');
-                item.className = 'gallery-item' + (f.isCover ? ' is-cover' : '');
-                if (f.type === 'video') {
-                    var vid = document.createElement('video');
-                    vid.src = f.dataUrl;
-                    vid.muted = true;
-                    vid.loop = true;
-                    vid.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-                    vid.addEventListener('mouseenter', function () { this.play(); });
-                    vid.addEventListener('mouseleave', function () { this.pause(); });
-                    item.appendChild(vid);
-                    var playIcon = document.createElement('div');
-                    playIcon.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.7);font-size:1.5rem;pointer-events:none;';
-                    playIcon.innerHTML = '<i class="fa-solid fa-play"></i>';
-                    item.appendChild(playIcon);
-                } else {
-                    var img = document.createElement('img');
-                    img.src = f.dataUrl;
-                    img.alt = f.file.name;
-                    item.appendChild(img);
-                }
-                if (f.isCover) {
-                    var badge = document.createElement('div');
-                    badge.className = 'cover-badge';
-                    badge.textContent = 'Cover';
-                    item.appendChild(badge);
-                }
-                var actions = document.createElement('div');
-                actions.className = 'gallery-actions';
-                var btnCover = document.createElement('button');
-                btnCover.type = 'button';
-                btnCover.className = 'btn-icon btn-cover';
-                btnCover.innerHTML = '<i class="fa-solid fa-crown"></i>';
-                btnCover.title = 'Jadikan Cover';
-                btnCover.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    galleryFiles.forEach(function (x) { x.isCover = false; });
-                    f.isCover = true;
-                    renderGallery();
-                });
-                var btnRemove = document.createElement('button');
-                btnRemove.type = 'button';
-                btnRemove.className = 'btn-icon btn-remove';
-                btnRemove.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-                btnRemove.title = 'Hapus';
-                btnRemove.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    galleryFiles.splice(idx, 1);
-                    renderGallery();
-                });
-                actions.appendChild(btnCover);
-                actions.appendChild(btnRemove);
-                item.appendChild(actions);
-                galleryGrid.appendChild(item);
-            });
-        }
+            var pending = files.length;
+            window._galleryFiles = [];
 
-        function addFiles(fileList) {
-            for (var gi = 0; gi < fileList.length; gi++) {
-                (function (file) {
-                    var isVideo = file.type.match('video.*');
-                    var isImage = file.type.match('image.*');
-                    if (!isImage && !isVideo) return;
-                    var reader = new FileReader();
-                    reader.onload = function (e) {
-                        galleryFiles.push({
-                            file: file,
-                            dataUrl: e.target.result,
-                            type: isVideo ? 'video' : 'image',
-                            isCover: galleryFiles.length === 0,
-                        });
-                        renderGallery();
-                    };
-                    reader.readAsDataURL(file);
-                })(fileList[gi]);
+            function checkDone() {
+                pending--;
+                if (pending > 0) return;
+                document.getElementById('galleryProcessing').style.display = 'none';
+                galleryStats.style.display = 'flex';
+                galleryCount.textContent = window._galleryFiles.length;
+                galleryCoverInfo.textContent = 'Klik gambar untuk jadikan cover';
             }
-        }
 
-        galleryDropZone.addEventListener('click', function () { galleryInput.click(); });
-        galleryInput.addEventListener('change', function () { addFiles(this.files); this.value = ''; });
-        galleryDropZone.addEventListener('dragover', function (e) { e.preventDefault(); this.classList.add('dragover'); });
-        galleryDropZone.addEventListener('dragleave', function () { this.classList.remove('dragover'); });
-        galleryDropZone.addEventListener('drop', function (e) {
-            e.preventDefault();
-            this.classList.remove('dragover');
-            addFiles(e.dataTransfer.files);
-        });
+            for (var i = 0; i < files.length; i++) {
+                (function (file, idx) {
+                    var isVideo = file.type ? file.type.match('video.*') : false;
+                    var isHeic = file.name.match(/\.(heic|heif)$/i);
+                    var item = document.createElement('div');
+                    item.className = 'gallery-item' + (idx === 0 ? ' is-cover' : '');
 
-        // ─── Form submit via AJAX (for file upload) ─────
-        document.getElementById('placeForm').addEventListener('submit', function (e) {
-            if (galleryFiles.length === 0) return;
-            e.preventDefault();
-            var form = this;
-            var fd = new FormData(form);
-            galleryFiles.forEach(function (f) {
-                fd.append('images[]', f.file, f.file.name);
-            });
-            var btn = form.querySelector('[type="submit"]');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menyimpan...';
+                    function showPreview(src) {
+                        item.style.cursor = 'pointer';
+                        item.title = 'Klik untuk jadikan cover';
+                        item.addEventListener('click', function () {
+                            document.getElementById('coverIndex').value = idx;
+                            document.querySelectorAll('#galleryGrid .gallery-item').forEach(function (el) {
+                                el.classList.remove('is-cover');
+                                var b = el.querySelector('.cover-badge');
+                                if (b) b.remove();
+                            });
+                            item.classList.add('is-cover');
+                            var b = document.createElement('div');
+                            b.className = 'cover-badge';
+                            b.textContent = 'Cover';
+                            item.appendChild(b);
+                        });
 
-            fetch(form.action, {
-                method: 'POST',
-                body: fd,
-                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-            }).then(function (r) {
-                if (r.ok) {
-                    window.location.href = '{{ route("admin.places.index") }}';
-                    return;
-                }
-                return r.json().then(function (data) {
-                    var msg = data.message || 'Gagal menyimpan data.';
-                    if (data.errors) {
-                        var list = Object.values(data.errors).flat().join('\n');
-                        msg += '\n\n' + list;
+                        if (isVideo) {
+                            var vid = document.createElement('video');
+                            vid.src = src;
+                            vid.muted = true;
+                            vid.loop = true;
+                            vid.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+                            vid.addEventListener('mouseenter', function () { this.play(); });
+                            vid.addEventListener('mouseleave', function () { this.pause(); });
+                            item.appendChild(vid);
+                            var pi = document.createElement('div');
+                            pi.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.7);font-size:1.5rem;pointer-events:none;';
+                            pi.innerHTML = '<i class="fa-solid fa-play"></i>';
+                            item.appendChild(pi);
+                        } else {
+                            var img = document.createElement('img');
+                            img.src = src;
+                            img.alt = file.name;
+                            img.onerror = function () {
+                                this.style.display = 'none';
+                                var icon = document.createElement('div');
+                                icon.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100%;color:#a0aec0;font-size:2rem;';
+                                icon.innerHTML = '<i class="fa-regular fa-file-image"></i>';
+                                item.insertBefore(icon, this);
+                            };
+                            item.appendChild(img);
+                        }
+                        if (idx === 0) {
+                            var badge = document.createElement('div');
+                            badge.className = 'cover-badge';
+                            badge.textContent = 'Cover';
+                            item.appendChild(badge);
+                        }
+                        galleryGrid.appendChild(item);
+                        checkDone();
                     }
-                    alert(msg);
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Publikasikan';
-                });
-            }).catch(function () {
-                alert('Terjadi kesalahan jaringan.');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Publikasikan';
-            });
+
+                    function makePreviewAndStore(convFile) {
+                        var srcFile = convFile || file;
+                        var r = new FileReader();
+                        r.onload = function (e) {
+                            showPreview(e.target.result);
+                            window._galleryFiles.push(srcFile);
+                        };
+                        r.readAsDataURL(srcFile);
+                    }
+
+                    if (isHeic && typeof heic2any !== 'undefined') {
+                        heic2any({ blob: file, toType: 'image/jpeg' }).then(function (resultBlob) {
+                            var newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+                            var jpegFile = new File([resultBlob], newName, { type: 'image/jpeg' });
+                            makePreviewAndStore(jpegFile);
+                        }).catch(function () {
+                            makePreviewAndStore(file);
+                        });
+                    } else {
+                        makePreviewAndStore();
+                    }
+                })(files[i], i);
+            }
         });
 
         // ─── Rich Text Editor ───────────────────────────
@@ -923,12 +868,42 @@
             });
         });
 
-        // Sync to hidden textarea on form submit
-        document.getElementById('placeForm').addEventListener('submit', function () {
+        // Sync to hidden textarea & upload via AJAX
+        document.getElementById('placeForm').addEventListener('submit', function (e) {
             var html = editor.innerHTML;
-            // Remove placeholder styling
             if (html === '<br>' || html === '') html = '';
             hiddenDesc.value = html;
+
+            var gf = window._galleryFiles;
+            if (!gf || gf.length === 0) return; // regular submit
+
+            e.preventDefault();
+            var form = this;
+            document.getElementById('galleryInput').value = '';
+            var fd = new FormData(form);
+            gf.forEach(function (f) { fd.append('images[]', f, f.name); });
+            var btn = form.querySelector('[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menyimpan...';
+
+            fetch(form.action, {
+                method: 'POST',
+                body: fd,
+                headers: { 'Accept': 'application/json' },
+            }).then(function (r) {
+                if (r.ok || r.redirected) { window.location.href = '{{ route("admin.places.index") }}'; return; }
+                return r.json().then(function (data) {
+                    var msg = data.message || 'Gagal menyimpan.';
+                    if (data.errors) msg += '\n\n' + Object.values(data.errors).flat().join('\n');
+                    alert(msg);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Publikasikan';
+                });
+            }).catch(function () {
+                alert('Terjadi kesalahan jaringan.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Publikasikan';
+            });
         });
 
         // Restore old value

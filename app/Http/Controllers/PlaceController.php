@@ -77,6 +77,30 @@ class PlaceController extends Controller
         $media = app(MediaService::class);
         $data = $request->validated();
         $place->update($data);
+
+        // Delete marked images
+        if ($request->has('delete_images')) {
+            foreach ((array) $request->input('delete_images') as $id) {
+                $img = $place->images()->find($id);
+                if (!$img) continue;
+                Storage::disk('public')->delete($img->image_path);
+                if ($img->thumb_path) Storage::disk('public')->delete($img->thumb_path);
+                // If this was the cover, clear image_path
+                if ($place->image_path === $img->image_path) {
+                    $place->update(['image_path' => null]);
+                }
+                $img->delete();
+            }
+        }
+
+        // Set cover from existing image
+        if ($request->filled('cover_image_id')) {
+            $img = $place->images()->find($request->input('cover_image_id'));
+            if ($img) {
+                $place->update(['image_path' => $img->image_path]);
+            }
+        }
+
         $this->processUploads($request, $media, $place);
 
         return redirect()->route('admin.places.index')
@@ -122,13 +146,15 @@ class PlaceController extends Controller
             'videos' => 'videos',
         ];
 
+        $coverIdx = (int) $request->input('cover_index', 0);
+        $inserted = 0;
+
         foreach ($sources as $inputName => $type) {
             if (!$request->hasFile($inputName)) continue;
 
-            foreach ($request->file($inputName) as $file) {
+            foreach ($request->file($inputName) as $i => $file) {
                 $result = $media->store($file, 'places');
 
-                // Skip duplicates
                 $exists = $place->images()->where('file_hash', $result['hash'])->exists();
                 if ($exists) continue;
 
@@ -140,10 +166,15 @@ class PlaceController extends Controller
                     'file_hash'  => $result['hash'],
                     'file_size'  => $result['size'],
                 ]);
+
+                if ($inserted === $coverIdx && !$place->image_path) {
+                    $place->update(['image_path' => $result['path']]);
+                }
+
+                $inserted++;
             }
         }
 
-        // Auto-set hero from first gallery image if no hero exists
         if (!$place->image_path) {
             $first = $place->images()->orderBy('id')->first();
             if ($first) {

@@ -5,8 +5,11 @@
 @section('content')
 <h4 class="mb-4">Edit Titik / Potensi Desa</h4>
 
-<form action="{{ route('admin.places.update', $place) }}" method="POST" enctype="multipart/form-data">
+<form action="{{ route('admin.places.update', $place) }}" method="POST" enctype="multipart/form-data" id="placeForm">
     @csrf @method('PUT')
+
+    <input type="hidden" name="cover_image_id" id="coverImageId" value="">
+    <input type="hidden" name="cover_index" id="coverIndex" value="0">
 
     <div class="row g-3">
         {{-- Nama --}}
@@ -56,29 +59,50 @@
             @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
-        {{-- Galeri saat ini --}}
+        {{-- Galeri --}}
         <div class="col-12">
-            <label class="form-label">Galeri Foto Saat Ini</label>
-            <div class="d-flex flex-wrap gap-2">
-                @forelse ($place->images as $img)
-                    <div style="position:relative;width:100px;height:75px;">
-                        <img src="{{ $img->image_url }}" alt=""
-                             style="width:100%;height:100%;object-fit:cover;border-radius:6px;border:1px solid #dee2e6;">
-                    </div>
-                @empty
-                    <span class="text-muted">Belum ada foto galeri.</span>
-                @endforelse
-            </div>
-        </div>
+            <label class="form-label">Galeri Foto</label>
 
-        {{-- Tambah foto galeri --}}
-        <div class="col-12">
-            <label class="form-label">Tambah Foto Baru</label>
-            <input type="file" name="images[]" class="form-control @error('images.*') is-invalid @enderror"
-                   accept="image/jpeg,image/png,image/jpg" multiple>
-            <small class="text-muted">Format: jpeg, png, jpg. Maksimal 2MB per file. Kosongkan jika tidak ingin menambah foto.</small>
-            @error('images.*') <div class="invalid-feedback">{{ $message }}</div> @enderror
-            <div id="preview-container" class="d-flex flex-wrap gap-2 mt-2"></div>
+            {{-- Existing images --}}
+            @if ($place->images->count() > 0)
+                <div class="d-flex flex-wrap gap-2 mb-3" id="existingGallery">
+                    @foreach ($place->images as $img)
+                        <div class="gallery-item existing-item {{ $img->image_path === $place->image_path ? 'is-cover' : '' }}"
+                             data-id="{{ $img->id }}"
+                             data-path="{{ $img->image_path }}"
+                             style="position:relative;width:110px;height:82px;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:pointer;transition:all 0.2s;">
+                            <img src="{{ $img->image_url }}" alt=""
+                                 style="width:100%;height:100%;object-fit:cover;">
+                            @if ($img->image_path === $place->image_path)
+                                <div class="cover-badge">Cover</div>
+                            @endif
+                            <button type="button" class="del-img-btn"
+                                    title="Hapus gambar"
+                                    style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity 0.2s;">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-muted mb-3" id="noImagesText">Belum ada foto galeri.</p>
+            @endif
+
+            {{-- Upload area --}}
+            <div id="galleryUploadArea">
+                <div id="galleryDropzone" style="border:2px dashed #cbd5e1;border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:#f8fafc;">
+                    <i class="fa-regular fa-images" style="font-size:1.8rem;color:#94a3b8;display:block;margin-bottom:6px;"></i>
+                    <span style="color:#64748b;font-size:0.85rem;font-weight:500;">Klik atau seret foto ke sini</span>
+                    <br><span style="color:#94a3b8;font-size:0.75rem;">JPEG, PNG, WebP • Maks 20MB</span>
+                </div>
+                <input type="file" name="images[]" id="galleryInput" accept="image/*" multiple style="display:none;">
+                <div id="galleryProcessing" style="display:none;text-align:center;padding:12px;color:#718096;font-size:0.85rem;">
+                    <i class="fa-solid fa-spinner fa-spin me-2"></i> Memproses gambar...
+                </div>
+                <div id="galleryGrid" class="d-flex flex-wrap gap-2 mt-2"></div>
+            </div>
+
+            @error('images.*') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
         </div>
 
         {{-- Peta interaktif --}}
@@ -110,6 +134,7 @@
 @endsection
 
 @push('styles')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
 <style>
     .map-wrapper #map-admin { height: 360px !important; border-radius: 10px; border: 1.5px solid #e2e8f0; z-index: 1; }
     .coord-info { margin-top: 8px; padding: 8px 14px; background: #f7fafc; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #4a5568; }
@@ -119,52 +144,239 @@
     .map-mode-pills .map-mode-pill i { font-size: 0.75rem; }
     .map-mode-pills .map-mode-pill.active { background: #fff; color: #2e7d32; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .map-mode-pills .map-mode-pill:hover:not(.active) { color: #334155; }
+
+    .gallery-item { position:relative; width:110px; height:82px; border-radius:8px; overflow:hidden; border:2px solid transparent; cursor:pointer; transition:all 0.2s; flex-shrink:0; }
+    .gallery-item img, .gallery-item video { width:100%; height:100%; object-fit:cover; }
+    .gallery-item.is-cover { border-color: #2e7d32; box-shadow: 0 0 0 3px rgba(46,125,50,0.15); }
+    .gallery-item .cover-badge { position:absolute; bottom:4px; left:4px; background:#2e7d32; color:#fff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:4px; line-height:1.5; }
+    .gallery-item:hover { border-color: #2e7d32; }
+    .gallery-item:hover .del-img-btn { opacity:1 !important; }
+
+    #galleryDropzone:hover { border-color: #2e7d32; background: #f0fdf4; }
 </style>
 @endpush
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // ─── Preview galeri ───────────────────────────────
-        var fileInput = document.querySelector('input[name="images[]"]');
-        var previewContainer = document.getElementById('preview-container');
+        // ─── Existing gallery: delete & cover ──────────
+        var coverImageIdInput = document.getElementById('coverImageId');
+        var coverIndexInput = document.getElementById('coverIndex');
+        var existingGallery = document.getElementById('existingGallery');
 
-        fileInput.addEventListener('change', function () {
-            previewContainer.innerHTML = '';
-            for (var i = 0; i < this.files.length; i++) {
-                (function (file) {
-                    if (!file.type.match('image.*')) return;
-                    var reader = new FileReader();
-                    reader.addEventListener('load', function (e) {
-                        var wrapper = document.createElement('div');
-                        wrapper.style.cssText = 'position:relative;width:100px;height:75px;';
-                        var img = document.createElement('img');
-                        img.src = e.target.result;
-                        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:6px;border:1px solid #dee2e6;';
-                        var name = document.createElement('div');
-                        name.textContent = file.name;
-                        name.style.cssText = 'font-size:10px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100px;';
-                        wrapper.appendChild(img);
-                        wrapper.appendChild(name);
-                        previewContainer.appendChild(wrapper);
+        if (existingGallery) {
+            existingGallery.querySelectorAll('.existing-item').forEach(function (el) {
+                // Click to set as cover
+                el.addEventListener('click', function (e) {
+                    if (e.target.closest('.del-img-btn')) return;
+                    var imgId = this.getAttribute('data-id');
+                    coverImageIdInput.value = imgId;
+                    existingGallery.querySelectorAll('.existing-item').forEach(function (item) {
+                        item.classList.remove('is-cover');
+                        var badge = item.querySelector('.cover-badge');
+                        if (badge) badge.remove();
                     });
-                    reader.readAsDataURL(file);
-                })(this.files[i]);
+                    this.classList.add('is-cover');
+                    var badge = document.createElement('div');
+                    badge.className = 'cover-badge';
+                    badge.textContent = 'Cover';
+                    this.appendChild(badge);
+                });
+
+                // Delete (batch — mark for deletion)
+                var delBtn = el.querySelector('.del-img-btn');
+                if (delBtn) {
+                    delBtn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        if (!confirm('Hapus gambar ini?')) return;
+                        var imgId = el.getAttribute('data-id');
+                        // Add hidden input for batch deletion
+                        var hiddenDel = document.createElement('input');
+                        hiddenDel.type = 'hidden';
+                        hiddenDel.name = 'delete_images[]';
+                        hiddenDel.value = imgId;
+                        document.getElementById('placeForm').appendChild(hiddenDel);
+                        // Animate removal
+                        el.style.transition = 'all 0.3s';
+                        el.style.opacity = '0';
+                        el.style.transform = 'scale(0.85)';
+                        setTimeout(function () {
+                            el.remove();
+                            if (!existingGallery.querySelector('.existing-item')) {
+                                existingGallery.remove();
+                                var noText = document.getElementById('noImagesText');
+                                if (noText) noText.style.display = 'block';
+                            }
+                        }, 300);
+                    });
+                }
+            });
+        }
+
+        // ─── New gallery upload (same as create) ──────
+        var galleryInput = document.getElementById('galleryInput');
+        var grid = document.getElementById('galleryGrid');
+        var dropzone = document.getElementById('galleryDropzone');
+        var processing = document.getElementById('galleryProcessing');
+
+        dropzone.addEventListener('click', function () { galleryInput.click(); });
+
+        galleryInput.addEventListener('change', function () {
+            grid.innerHTML = '';
+            window._galleryFiles = [];
+            var files = this.files;
+            if (!files || files.length === 0) return;
+
+            processing.style.display = 'block';
+            var pending = files.length;
+
+            function checkDone() {
+                pending--;
+                if (pending > 0) return;
+                processing.style.display = 'none';
+            }
+
+            for (var i = 0; i < files.length; i++) {
+                (function (file, idx) {
+                    var isVideo = file.type ? file.type.match('video.*') : false;
+                    var isHeic = file.name.match(/\.(heic|heif)$/i);
+                    var item = document.createElement('div');
+                    item.className = 'gallery-item' + (idx === 0 ? ' is-cover' : '');
+
+                    function showPreview(src) {
+                        item.style.cursor = 'pointer';
+                        item.title = 'Klik untuk jadikan cover';
+                        item.addEventListener('click', function () {
+                            coverImageIdInput.value = '';
+                            coverIndexInput.value = idx;
+                            grid.querySelectorAll('.gallery-item').forEach(function (el) {
+                                el.classList.remove('is-cover');
+                                var b = el.querySelector('.cover-badge');
+                                if (b) b.remove();
+                            });
+                            item.classList.add('is-cover');
+                            var b = document.createElement('div');
+                            b.className = 'cover-badge';
+                            b.textContent = 'Cover';
+                            item.appendChild(b);
+                            // Unmark existing covers
+                            if (existingGallery) {
+                                existingGallery.querySelectorAll('.existing-item').forEach(function (el) {
+                                    el.classList.remove('is-cover');
+                                    var badge = el.querySelector('.cover-badge');
+                                    if (badge) badge.remove();
+                                });
+                            }
+                        });
+
+                        if (isVideo) {
+                            var vid = document.createElement('video');
+                            vid.src = src;
+                            vid.muted = true;
+                            vid.loop = true;
+                            vid.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+                            vid.addEventListener('mouseenter', function () { this.play(); });
+                            vid.addEventListener('mouseleave', function () { this.pause(); });
+                            item.appendChild(vid);
+                            var pi = document.createElement('div');
+                            pi.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.7);font-size:1.5rem;pointer-events:none;';
+                            pi.innerHTML = '<i class="fa-solid fa-play"></i>';
+                            item.appendChild(pi);
+                        } else {
+                            var img = document.createElement('img');
+                            img.src = src;
+                            img.alt = file.name;
+                            img.onerror = function () {
+                                this.style.display = 'none';
+                                var icon = document.createElement('div');
+                                icon.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100%;color:#a0aec0;font-size:2rem;';
+                                icon.innerHTML = '<i class="fa-regular fa-file-image"></i>';
+                                item.insertBefore(icon, this);
+                            };
+                            item.appendChild(img);
+                        }
+                        if (idx === 0 && !document.querySelector('#existingGallery .is-cover') && !coverImageIdInput.value && coverIndexInput.value === '0') {
+                            var badge = document.createElement('div');
+                            badge.className = 'cover-badge';
+                            badge.textContent = 'Cover';
+                            item.appendChild(badge);
+                        }
+                        grid.appendChild(item);
+                        checkDone();
+                    }
+
+                    function makePreviewAndStore(convFile) {
+                        var srcFile = convFile || file;
+                        var r = new FileReader();
+                        r.onload = function (e) {
+                            showPreview(e.target.result);
+                            window._galleryFiles = window._galleryFiles || [];
+                            window._galleryFiles.push(srcFile);
+                        };
+                        r.readAsDataURL(srcFile);
+                    }
+
+                    if (isHeic && typeof heic2any !== 'undefined') {
+                        heic2any({ blob: file, toType: 'image/jpeg' }).then(function (resultBlob) {
+                            var newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+                            var jpegFile = new File([resultBlob], newName, { type: 'image/jpeg' });
+                            makePreviewAndStore(jpegFile);
+                        }).catch(function () {
+                            makePreviewAndStore(file);
+                        });
+                    } else {
+                        makePreviewAndStore();
+                    }
+                })(files[i], i);
             }
         });
 
+        // ─── AJAX form submit when new files present ──
+        document.getElementById('placeForm').addEventListener('submit', function (e) {
+            var gf = window._galleryFiles;
+            if (!gf || gf.length === 0) return;
+
+            e.preventDefault();
+            var form = this;
+            document.getElementById('galleryInput').value = '';
+            var fd = new FormData(form);
+            gf.forEach(function (f) { fd.append('images[]', f, f.name); });
+            var btn = form.querySelector('[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menyimpan...';
+
+            fetch(form.action, {
+                method: 'POST',
+                body: fd,
+                headers: { 'Accept': 'application/json' },
+            }).then(function (r) {
+                if (r.ok || r.redirected) { window.location.href = '{{ route("admin.places.index") }}'; return; }
+                return r.json().then(function (data) {
+                    var msg = data.message || 'Gagal menyimpan.';
+                    if (data.errors) msg += '\n\n' + Object.values(data.errors).flat().join('\n');
+                    alert(msg);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i> Update';
+                });
+            }).catch(function () {
+                alert('Terjadi kesalahan jaringan.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i> Update';
+            });
+        });
+
+        // ─── Map ───────────────────────────────────────
         var existingLat = {{ old('latitude', $place->latitude) }};
         var existingLng = {{ old('longitude', $place->longitude) }};
 
-        // Inisialisasi peta
         var map = L.map('map-admin', {
             center: [existingLat, existingLng],
             zoom: 15,
             zoomControl: true,
         });
 
-        // Tile layers for mode switching
-        // Default: OSM jalan
         var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap',
             maxZoom: 19,
@@ -188,7 +400,6 @@
         var currentBase = osmLayer;
         var currentLabel = null;
 
-        // Mode switcher
         var modePills = document.querySelectorAll('.map-mode-pill');
         modePills.forEach(function (btn) {
             btn.addEventListener('click', function () {
@@ -212,20 +423,13 @@
             });
         });
 
-        // Boundary Bilebante (referensi visual)
         fetch('/api/boundary', {
-            headers: {
-                'Accept': 'application/json',
-                'X-Tunnel-Skip-AntiPhishing-Page': 'true'
-            }
+            headers: { 'Accept': 'application/json', 'X-Tunnel-Skip-AntiPhishing-Page': 'true' }
         })
             .then(function (r) { return r.json(); })
             .then(function (geo) {
                 L.geoJSON(geo, {
-                    style: {
-                        color: '#4caf50', weight: 2, opacity: 0.7,
-                        fillColor: '#4caf50', fillOpacity: 0.06,
-                    },
+                    style: { color: '#4caf50', weight: 2, opacity: 0.7, fillColor: '#4caf50', fillOpacity: 0.06 },
                 }).addTo(map);
             })
             .catch(function () {});
@@ -234,7 +438,6 @@
         var lngInput = document.getElementById('input-lng');
         var coordInfo = document.getElementById('coord-info');
 
-        // Map tools
         document.getElementById('btnSearchMap').addEventListener('click', function () {
             var query = prompt('Masukkan nama lokasi:');
             if (!query) return;
@@ -248,9 +451,7 @@
                         latInput.value = ll.lat.toFixed(6);
                         lngInput.value = ll.lng.toFixed(6);
                         coordInfo.innerHTML = '&#128204; ' + ll.lat.toFixed(6) + ', ' + ll.lng.toFixed(6);
-                    } else {
-                        alert('Lokasi tidak ditemukan.');
-                    }
+                    } else { alert('Lokasi tidak ditemukan.'); }
                 })
                 .catch(function () { alert('Gagal mencari lokasi.'); });
         });
@@ -275,10 +476,7 @@
             coordInfo.innerHTML = '&#128204; ' + existingLat.toFixed(6) + ', ' + existingLng.toFixed(6);
         });
 
-        // Marker existing — bisa digeser
-        var marker = L.marker([existingLat, existingLng], {
-            draggable: true,
-        }).addTo(map);
+        var marker = L.marker([existingLat, existingLng], { draggable: true }).addTo(map);
 
         marker.on('dragend', function () {
             var pos = marker.getLatLng();
@@ -287,7 +485,6 @@
             coordInfo.innerHTML = '&#128204; ' + pos.lat.toFixed(6) + ', ' + pos.lng.toFixed(6);
         });
 
-        // Klik peta → pindahkan marker
         map.on('click', function (e) {
             marker.setLatLng(e.latlng);
             latInput.value = e.latlng.lat.toFixed(6);

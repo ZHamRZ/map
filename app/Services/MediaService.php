@@ -11,7 +11,6 @@ class MediaService
     const IMAGE_MIMES = [
         'image/jpeg', 'image/png', 'image/webp', 'image/gif',
         'image/svg+xml', 'image/avif', 'image/bmp', 'image/tiff',
-        'image/heic', 'image/heif',
     ];
 
     const VIDEO_MIMES = [
@@ -21,7 +20,7 @@ class MediaService
         'video/3gpp', 'video/3gpp2',
     ];
 
-    const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'avif', 'bmp', 'tiff', 'tif', 'heic', 'heif'];
+    const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'avif', 'bmp', 'tiff', 'tif'];
 
     const VIDEO_EXTENSIONS = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v', 'mpeg', 'mpg', 'wmv', '3gp', '3g2'];
 
@@ -63,7 +62,6 @@ class MediaService
             'image/webp' => 'webp', 'image/gif' => 'gif',
             'image/svg+xml' => 'svg', 'image/avif' => 'avif',
             'image/bmp' => 'bmp', 'image/tiff' => 'tiff',
-            'image/heic' => 'heic', 'image/heif' => 'heif',
             'video/mp4' => 'mp4', 'video/quicktime' => 'mov',
             'video/x-msvideo' => 'avi', 'video/x-matroska' => 'mkv',
             'video/webm' => 'webm', 'video/x-m4v' => 'm4v',
